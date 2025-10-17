@@ -520,24 +520,292 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const treeLevels = document.querySelectorAll('.tree-level');
-            const progressBar = document.getElementById('progressBar');
-            const percentage = document.getElementById('percentage');
-            const milestoneIndicators = {
-                25: document.getElementById('milestone25'),
-                50: document.getElementById('milestone50'),
-                75: document.getElementById('milestone75')
-            };
-            let completedSteps = 0;
-            let autoProgress = 0;
+        // RoadmapManager class for data operations
+        class RoadmapManager {
+            constructor(roadmapData) {
+                this.data = roadmapData;
+            }
 
-            // Network engineering roadmap data (tooltips)
-            const roadmapData = [
-                'OSI Model', 'TCP/IP', 'Subnetting', 'Routing',
-                'Switching', 'VLANs', 'Security', 'Wireless',
-                'Monitoring', 'Automation'
-            ];
+            // Get node by ID
+            getNodeById(id) {
+                return this.data.nodes.find(node => node.id === id);
+            }
+
+            // Get all nodes
+            getAllNodes() {
+                return this.data.nodes;
+            }
+
+            // Get nodes by category
+            getNodesByCategory(category) {
+                return this.data.nodes.filter(node => node.category === category);
+            }
+
+            // Get nodes by difficulty
+            getNodesByDifficulty(difficulty) {
+                return this.data.nodes.filter(node => node.difficulty === difficulty);
+            }
+
+            // Get prerequisites for a node
+            getPrerequisites(nodeId) {
+                const node = this.getNodeById(nodeId);
+                if (!node || !node.prerequisites.length) return [];
+
+                return node.prerequisites.map(prereqId => this.getNodeById(prereqId))
+                                       .filter(prereq => prereq !== undefined);
+            }
+
+            // Get recommended next nodes based on completed nodes
+            getRecommendedNextNodes(completedNodeIds) {
+                const completedSet = new Set(completedNodeIds);
+
+                return this.data.nodes.filter(node => {
+                    // Node not completed yet
+                    if (completedSet.has(node.id)) return false;
+
+                    // All prerequisites are completed
+                    return node.prerequisites.every(prereqId => completedSet.has(prereqId));
+                }).sort((a, b) => {
+                    // Sort by number of prerequisites (fewer first)
+                    const aPrereqs = a.prerequisites.length;
+                    const bPrereqs = b.prerequisites.length;
+                    if (aPrereqs !== bPrereqs) return aPrereqs - bPrereqs;
+
+                    // Then by difficulty level
+                    const difficultyOrder = { 'Beginner': 0, 'Intermediate': 1, 'Advanced': 2, 'Expert': 3 };
+                    return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
+                });
+            }
+
+            // Get available nodes (no prerequisites or all prerequisites completed)
+            getAvailableNodes(completedNodeIds = []) {
+                const completedSet = new Set(completedNodeIds);
+                return this.data.nodes.filter(node =>
+                    node.prerequisites.length === 0 || node.prerequisites.every(prereqId => completedSet.has(prereqId))
+                );
+            }
+
+            // Calculate completion statistics
+            getCompletionStats(completedNodeIds) {
+                const completedSet = new Set(completedNodeIds);
+                const totalNodes = this.data.nodes.length;
+                const completedNodes = this.data.nodes.filter(node => completedSet.has(node.id));
+                const completionPercentage = (completedNodeIds.length / totalNodes) * 100;
+
+                // Calculate category completion
+                const categoryStats = {};
+                this.data.metadata.categories.forEach(category => {
+                    const categoryNodes = this.getNodesByCategory(category);
+                    const completedInCategory = categoryNodes.filter(node => completedSet.has(node.id));
+                    categoryStats[category] = {
+                        total: categoryNodes.length,
+                        completed: completedInCategory.length,
+                        percentage: categoryNodes.length > 0 ? (completedInCategory.length / categoryNodes.length) * 100 : 0
+                    };
+                });
+
+                // Calculate difficulty distribution
+                const difficultyStats = {};
+                this.data.metadata.difficultyLevels.forEach(difficulty => {
+                    const difficultyNodes = this.getNodesByDifficulty(difficulty);
+                    const completedInDifficulty = difficultyNodes.filter(node => completedSet.has(node.id));
+                    difficultyStats[difficulty] = {
+                        total: difficultyNodes.length,
+                        completed: completedInDifficulty.length,
+                        percentage: difficultyNodes.length > 0 ? (completedInDifficulty.length / difficultyNodes.length) * 100 : 0
+                    };
+                });
+
+                return {
+                    totalNodes,
+                    completedNodes: completedNodeIds.length,
+                    completionPercentage: Math.round(completionPercentage * 100) / 100,
+                    categoryStats,
+                    difficultyStats,
+                    completedNodes: completedNodes
+                };
+            }
+
+            // Get learning path (recommended order)
+            getLearningPath() {
+                const path = [];
+                const completedSet = new Set();
+                const remainingNodes = [...this.data.nodes];
+
+                while (remainingNodes.length > 0) {
+                    // Find nodes that can be added next (all prerequisites completed)
+                    const nextNodes = remainingNodes.filter(node =>
+                        node.prerequisites.every(prereqId => completedSet.has(prereqId))
+                    );
+
+                    if (nextNodes.length === 0) {
+                        // If no nodes can be added, add the one with fewest prerequisites
+                        nextNodes.push(remainingNodes.reduce((min, node) =>
+                            node.prerequisites.length < min.prerequisites.length ? node : min
+                        ));
+                    }
+
+                    // Sort by difficulty and add to path
+                    nextNodes.sort((a, b) => {
+                        const difficultyOrder = { 'Beginner': 0, 'Intermediate': 1, 'Advanced': 2, 'Expert': 3 };
+                        return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
+                    });
+
+                    const nextNode = nextNodes[0];
+                    path.push(nextNode);
+                    completedSet.add(nextNode.id);
+
+                    // Remove from remaining nodes
+                    const index = remainingNodes.findIndex(node => node.id === nextNode.id);
+                    if (index > -1) {
+                        remainingNodes.splice(index, 1);
+                    }
+                }
+
+                return path;
+            }
+        }
+
+        // ProgressManager class for localStorage integration
+        class ProgressManager {
+            constructor(storageKey = 'networkRoadmapProgress') {
+                this.storageKey = storageKey;
+                this.completedNodes = new Set(this.loadProgress());
+            }
+
+            // Load progress from localStorage
+            loadProgress() {
+                try {
+                    const saved = localStorage.getItem(this.storageKey);
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        return Array.isArray(parsed) ? parsed : [];
+                    }
+                } catch (error) {
+                    console.warn('Failed to load progress from localStorage:', error);
+                }
+                return [];
+            }
+
+            // Save progress to localStorage
+            saveProgress() {
+                try {
+                    const progressArray = Array.from(this.completedNodes);
+                    localStorage.setItem(this.storageKey, JSON.stringify(progressArray));
+                    return true;
+                } catch (error) {
+                    console.warn('Failed to save progress to localStorage:', error);
+                    return false;
+                }
+            }
+
+            // Mark a node as completed
+            completeNode(nodeId) {
+                if (typeof nodeId !== 'number') {
+                    console.warn('Node ID must be a number');
+                    return false;
+                }
+
+                this.completedNodes.add(nodeId);
+                return this.saveProgress();
+            }
+
+            // Mark a node as incomplete
+            uncompleteNode(nodeId) {
+                if (typeof nodeId !== 'number') {
+                    console.warn('Node ID must be a number');
+                    return false;
+                }
+
+                this.completedNodes.delete(nodeId);
+                return this.saveProgress();
+            }
+
+            // Toggle node completion status
+            toggleNode(nodeId) {
+                if (this.isCompleted(nodeId)) {
+                    return this.uncompleteNode(nodeId);
+                } else {
+                    return this.completeNode(nodeId);
+                }
+            }
+
+            // Check if a node is completed
+            isCompleted(nodeId) {
+                return this.completedNodes.has(nodeId);
+            }
+
+            // Get all completed node IDs
+            getCompletedNodes() {
+                return Array.from(this.completedNodes);
+            }
+
+            // Get completion count
+            getCompletedCount() {
+                return this.completedNodes.size;
+            }
+
+            // Get completion percentage (requires total nodes)
+            getCompletionPercentage(totalNodes) {
+                if (totalNodes <= 0) return 0;
+                return Math.round((this.completedNodes.size / totalNodes) * 10000) / 100; // Round to 2 decimal places
+            }
+
+            // Check if all nodes are completed
+            isFullyCompleted(totalNodes) {
+                return this.completedNodes.size >= totalNodes;
+            }
+
+            // Get recently completed nodes (last 5)
+            getRecentlyCompleted() {
+                // This would require storing timestamps, for now return last 5 completed
+                return Array.from(this.completedNodes).slice(-5);
+            }
+
+            // Clear all progress
+            clearProgress() {
+                this.completedNodes.clear();
+                try {
+                    localStorage.removeItem(this.storageKey);
+                    return true;
+                } catch (error) {
+                    console.warn('Failed to clear progress from localStorage:', error);
+                    return false;
+                }
+            }
+
+            // Export progress data
+            exportProgress() {
+                return {
+                    completedNodes: Array.from(this.completedNodes),
+                    completedCount: this.completedNodes.size,
+                    exportDate: new Date().toISOString()
+                };
+            }
+
+            // Import progress data
+            importProgress(progressData) {
+                if (progressData && Array.isArray(progressData.completedNodes)) {
+                    this.completedNodes = new Set(progressData.completedNodes);
+                    return this.saveProgress();
+                }
+                return false;
+            }
+
+            // Get progress statistics
+            getProgressStats(totalNodes) {
+                const completed = this.completedNodes.size;
+                const percentage = this.getCompletionPercentage(totalNodes);
+
+                return {
+                    completed,
+                    total: totalNodes,
+                    percentage,
+                    remaining: totalNodes - completed,
+                    isComplete: completed >= totalNodes
+                };
+            }
+        }
 
             // Create ripple effect
             function createRipple(event) {
@@ -583,11 +851,27 @@
             }
 
             treeLevels.forEach((level, index) => {
-                // Add tooltip
+                const nodeId = index + 1;
+                const nodeData = roadmapManager.getNodeById(nodeId);
+
+                // Create enhanced tooltip with rich metadata
                 const tooltip = document.createElement('div');
                 tooltip.className = 'tooltip';
-                tooltip.textContent = roadmapData[index];
+
+                // Create tooltip content with rich information
+                tooltip.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 4px; color: #fff;">${nodeData.title}</div>
+                    <div style="font-size: 10px; margin-bottom: 4px; opacity: 0.9;">${nodeData.difficulty} • ${nodeData.estimatedTime}</div>
+                    <div style="font-size: 10px; margin-bottom: 4px; opacity: 0.8;">${nodeData.category}</div>
+                    <div style="font-size: 10px; opacity: 0.7; line-height: 1.3;">${nodeData.description}</div>
+                `;
+
                 level.appendChild(tooltip);
+
+                // Mark as completed if saved in progress
+                if (progressManager.isCompleted(nodeId)) {
+                    level.classList.add('active');
+                }
 
                 // Drag and drop functionality (visual feedback only)
                 let isDragging = false;
@@ -629,16 +913,23 @@
                         this.classList.remove('state-changing');
                     }, 100);
 
-                    // Update progress
+                    // Update progress using ProgressManager
+                    const nodeId = index + 1;
+                    const wasCompleted = progressManager.isCompleted(nodeId);
+
                     if (this.classList.contains('active')) {
-                        completedSteps++;
+                        // Node is being marked as incomplete
+                        progressManager.uncompleteNode(nodeId);
+                        completedSteps--;
                         createParticleEffect(this);
                     } else {
-                        completedSteps--;
+                        // Node is being marked as complete
+                        progressManager.completeNode(nodeId);
+                        completedSteps++;
                     }
 
-                    // Update progress bar and percentage
-                    const progress = (completedSteps / treeLevels.length) * 100;
+                    // Update progress bar and percentage using new system
+                    const progress = progressManager.getCompletionPercentage(treeLevels.length);
                     updateProgress(progress);
 
                     // Check for milestones
@@ -650,10 +941,20 @@
                 // Enhanced hover effects for tooltips
                 level.addEventListener('mouseenter', function() {
                     tooltip.style.opacity = '1';
-                    tooltip.style.top = '-40px';
+                    tooltip.style.top = '-50px';
                     tooltip.style.left = '50%';
                     tooltip.style.transform = 'translateX(-50%)';
                     this.style.zIndex = '20';
+
+                    // Show additional node information in console for debugging
+                    const nodeData = roadmapManager.getNodeById(nodeId);
+                    console.log(`Node ${nodeId}: ${nodeData.title}`, {
+                        description: nodeData.description,
+                        difficulty: nodeData.difficulty,
+                        category: nodeData.category,
+                        prerequisites: nodeData.prerequisites,
+                        completed: progressManager.isCompleted(nodeId)
+                    });
                 });
 
                 level.addEventListener('mouseleave', function() {
@@ -675,20 +976,74 @@
                 percentage.style.webkitTextFillColor = 'transparent';
             }
 
-            // Auto-progress animation with milestones
+            // Auto-progress animation with milestones (using new progress system)
             const autoProgressInterval = setInterval(() => {
-                autoProgress += 0.5;
-                if (autoProgress <= 100) {
-                    updateProgress(autoProgress);
+                // Simulate completing nodes automatically for demo
+                const currentCompleted = progressManager.getCompletedCount();
+                if (currentCompleted < treeLevels.length) {
+                    const nextNodeId = currentCompleted + 1;
+                    progressManager.completeNode(nextNodeId);
+
+                    const progress = progressManager.getCompletionPercentage(treeLevels.length);
+                    updateProgress(progress);
 
                     // Trigger milestone celebrations during auto-progress
-                    if (Math.floor(autoProgress) === 25) celebrateMilestone(25);
-                    if (Math.floor(autoProgress) === 50) celebrateMilestone(50);
-                    if (Math.floor(autoProgress) === 75) celebrateMilestone(75);
+                    if (Math.floor(progress) === 25) celebrateMilestone(25);
+                    if (Math.floor(progress) === 50) celebrateMilestone(50);
+                    if (Math.floor(progress) === 75) celebrateMilestone(75);
                 } else {
                     clearInterval(autoProgressInterval);
                 }
-            }, 80);
+            }, 2000); // Slower auto-progress for better demo experience
+
+            // Display roadmap statistics
+            function displayRoadmapStats() {
+                const stats = roadmapManager.getCompletionStats(progressManager.getCompletedNodes());
+                console.log('=== Network Engineer Roadmap Statistics ===');
+                console.log(`Overall Progress: ${stats.completionPercentage}% (${stats.completedNodes}/${stats.totalNodes} nodes)`);
+                console.log('Category Breakdown:');
+                Object.entries(stats.categoryStats).forEach(([category, data]) => {
+                    console.log(`  ${category}: ${data.completed}/${data.total} (${Math.round(data.percentage)}%)`);
+                });
+                console.log('Difficulty Breakdown:');
+                Object.entries(stats.difficultyStats).forEach(([difficulty, data]) => {
+                    console.log(`  ${difficulty}: ${data.completed}/${data.total} (${Math.round(data.percentage)}%)`);
+                });
+                console.log('Recently Completed:', progressManager.getRecentlyCompleted());
+                console.log('========================================');
+            }
+
+            // Add keyboard shortcuts for debugging
+            document.addEventListener('keydown', function(e) {
+                switch(e.key.toLowerCase()) {
+                    case 'r':
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            if (confirm('Reset all progress? This cannot be undone.')) {
+                                progressManager.clearProgress();
+                                location.reload();
+                            }
+                        }
+                        break;
+                    case 's':
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            displayRoadmapStats();
+                        }
+                        break;
+                    case 'e':
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            const exportData = progressManager.exportProgress();
+                            console.log('Progress Export Data:', exportData);
+                            alert('Progress data exported to console. Check browser dev tools.');
+                        }
+                        break;
+                }
+            });
+
+            // Display initial statistics
+            displayRoadmapStats();
 
             // Parallax effect for background shapes
             document.addEventListener('mousemove', function(e) {
@@ -705,6 +1060,416 @@
                 });
             });
         });
-    </script>
+
+        // Network engineering roadmap data with rich metadata
+        const roadmapData = {
+                "nodes": [
+                    {
+                        "id": 1,
+                        "title": "OSI Model",
+                        "description": "Understanding the 7-layer OSI model and how data flows through network layers",
+                        "difficulty": "Beginner",
+                        "estimatedTime": "2-3 hours",
+                        "prerequisites": [],
+                        "resources": [
+                            "OSI Model documentation",
+                            "Network+ study guides",
+                            "Cisco networking basics"
+                        ],
+                        "category": "Fundamentals"
+                    },
+                    {
+                        "id": 2,
+                        "title": "TCP/IP Protocol Suite",
+                        "description": "Master TCP/IP protocols, addressing, and subnetting fundamentals",
+                        "difficulty": "Beginner",
+                        "estimatedTime": "4-5 hours",
+                        "prerequisites": [1],
+                        "resources": [
+                            "TCP/IP Illustrated",
+                            "RFC 791 (IP)",
+                            "RFC 793 (TCP)",
+                            "Subnetting practice tools"
+                        ],
+                        "category": "Core Protocols"
+                    },
+                    {
+                        "id": 3,
+                        "title": "Subnetting & IP Addressing",
+                        "description": "Learn subnetting techniques, VLSM, and CIDR notation",
+                        "difficulty": "Intermediate",
+                        "estimatedTime": "3-4 hours",
+                        "prerequisites": [2],
+                        "resources": [
+                            "Subnet calculators",
+                            "IP addressing workbooks",
+                            "Cisco subnetting tutorials"
+                        ],
+                        "category": "IP Management"
+                    },
+                    {
+                        "id": 4,
+                        "title": "Routing Fundamentals",
+                        "description": "Static and dynamic routing protocols (RIP, OSPF, EIGRP, BGP)",
+                        "difficulty": "Intermediate",
+                        "estimatedTime": "6-8 hours",
+                        "prerequisites": [3],
+                        "resources": [
+                            "Cisco routing guides",
+                            "OSPF documentation",
+                            "BGP case studies",
+                            "Network simulator tools"
+                        ],
+                        "category": "Routing"
+                    },
+                    {
+                        "id": 5,
+                        "title": "Switching Technologies",
+                        "description": "Ethernet switching, VLANs, STP, and Layer 2 protocols",
+                        "difficulty": "Intermediate",
+                        "estimatedTime": "4-5 hours",
+                        "prerequisites": [1, 2],
+                        "resources": [
+                            "Cisco switching fundamentals",
+                            "STP explained",
+                            "VLAN configuration guides"
+                        ],
+                        "category": "Layer 2"
+                    },
+                    {
+                        "id": 6,
+                        "title": "VLANs & Trunking",
+                        "description": "VLAN design, trunking protocols, and inter-VLAN routing",
+                        "difficulty": "Intermediate",
+                        "estimatedTime": "3-4 hours",
+                        "prerequisites": [5],
+                        "resources": [
+                            "802.1Q standard",
+                            "VTP configuration",
+                            "Layer 3 switching"
+                        ],
+                        "category": "Layer 2"
+                    },
+                    {
+                        "id": 7,
+                        "title": "Network Security",
+                        "description": "Firewalls, VPNs, access control, and security best practices",
+                        "difficulty": "Advanced",
+                        "estimatedTime": "8-10 hours",
+                        "prerequisites": [2, 4, 5],
+                        "resources": [
+                            "Cisco ASA guides",
+                            "Firewall fundamentals",
+                            "VPN configuration",
+                            "Security+ certification"
+                        ],
+                        "category": "Security"
+                    },
+                    {
+                        "id": 8,
+                        "title": "Wireless Networks",
+                        "description": "Wi-Fi standards, security, and enterprise wireless deployment",
+                        "difficulty": "Advanced",
+                        "estimatedTime": "5-6 hours",
+                        "prerequisites": [2, 7],
+                        "resources": [
+                            "802.11 standards",
+                            "Wi-Fi security guides",
+                            "Cisco wireless controllers"
+                        ],
+                        "category": "Wireless"
+                    },
+                    {
+                        "id": 9,
+                        "title": "Network Monitoring",
+                        "description": "SNMP, NetFlow, monitoring tools, and performance analysis",
+                        "difficulty": "Advanced",
+                        "estimatedTime": "4-5 hours",
+                        "prerequisites": [4, 5],
+                        "resources": [
+                            "SNMP tutorials",
+                            "SolarWinds guides",
+                            "PRTG Network Monitor",
+                            "Wireshark documentation"
+                        ],
+                        "category": "Operations"
+                    },
+                    {
+                        "id": 10,
+                        "title": "Network Automation",
+                        "description": "Python scripting, Ansible, REST APIs, and infrastructure as code",
+                        "difficulty": "Expert",
+                        "estimatedTime": "10-12 hours",
+                        "prerequisites": [4, 7, 9],
+                        "resources": [
+                            "Python for network engineers",
+                            "Ansible playbooks",
+                            "Cisco DevNet",
+                            "NETCONF/YANG models"
+                        ],
+                        "category": "Automation"
+                    }
+                ],
+                "metadata": {
+                    "totalNodes": 10,
+                    "categories": ["Fundamentals", "Core Protocols", "IP Management", "Routing", "Layer 2", "Security", "Wireless", "Operations", "Automation"],
+                    "difficultyLevels": ["Beginner", "Intermediate", "Advanced", "Expert"],
+                    "estimatedTotalTime": "50-65 hours"
+                }
+            };
+
+            // Create ripple effect
+            function createRipple(event) {
+                const ripple = document.createElement('div');
+                const rect = event.target.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = event.clientX - rect.left - size / 2;
+                const y = event.clientY - rect.top - size / 2;
+
+                ripple.style.width = ripple.style.height = size + 'px';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                ripple.classList.add('ripple');
+
+                event.target.appendChild(ripple);
+
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
+            }
+
+            // Particle effect on node activation
+            function createParticleEffect(element) {
+                element.classList.add('particle-active');
+
+                setTimeout(() => {
+                    element.classList.remove('particle-active');
+                }, 2000);
+            }
+
+            // Milestone celebration
+            function celebrateMilestone(milestone) {
+                const indicator = milestoneIndicators[milestone];
+                if (indicator) {
+                    indicator.style.animation = 'milestoneGlow 1s ease-in-out';
+                    indicator.style.background = '#4CAF50';
+
+                    setTimeout(() => {
+                        indicator.style.animation = 'milestoneGlow 2s ease-in-out infinite';
+                        indicator.style.background = '#fff';
+                    }, 1000);
+                }
+            }
+
+            treeLevels.forEach((level, index) => {
+                const nodeId = index + 1;
+                const nodeData = roadmapManager.getNodeById(nodeId);
+
+                // Create enhanced tooltip with rich metadata
+                const tooltip = document.createElement('div');
+                tooltip.className = 'tooltip';
+
+                // Create tooltip content with rich information
+                tooltip.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 4px; color: #fff;">${nodeData.title}</div>
+                    <div style="font-size: 10px; margin-bottom: 4px; opacity: 0.9;">${nodeData.difficulty} • ${nodeData.estimatedTime}</div>
+                    <div style="font-size: 10px; margin-bottom: 4px; opacity: 0.8;">${nodeData.category}</div>
+                    <div style="font-size: 10px; opacity: 0.7; line-height: 1.3;">${nodeData.description}</div>
+                `;
+
+                level.appendChild(tooltip);
+
+                // Mark as completed if saved in progress
+                if (progressManager.isCompleted(nodeId)) {
+                    level.classList.add('active');
+                }
+
+                // Drag and drop functionality (visual feedback only)
+                let isDragging = false;
+
+                level.addEventListener('mousedown', function(e) {
+                    isDragging = true;
+                    this.classList.add('dragging');
+                });
+
+                document.addEventListener('mousemove', function(e) {
+                    if (isDragging) {
+                        const rect = level.getBoundingClientRect();
+                        level.style.left = ((e.clientX - rect.width / 2) / window.innerWidth * 100) + '%';
+                        level.style.top = ((e.clientY - rect.height / 2) / window.innerHeight * 100) + '%';
+                    }
+                });
+
+                document.addEventListener('mouseup', function(e) {
+                    if (isDragging) {
+                        isDragging = false;
+                        level.classList.remove('dragging');
+                        // Reset position after drag
+                        setTimeout(() => {
+                            level.style.left = '';
+                            level.style.top = '';
+                        }, 300);
+                    }
+                });
+
+                // Click interaction with enhanced animations
+                level.addEventListener('click', function(e) {
+                    // Create ripple effect
+                    createRipple(e);
+
+                    // Toggle active state with smooth transition
+                    this.classList.add('state-changing');
+                    setTimeout(() => {
+                        this.classList.toggle('active');
+                        this.classList.remove('state-changing');
+                    }, 100);
+
+                    // Update progress using ProgressManager
+                    const nodeId = index + 1;
+                    const wasCompleted = progressManager.isCompleted(nodeId);
+
+                    if (this.classList.contains('active')) {
+                        // Node is being marked as incomplete
+                        progressManager.uncompleteNode(nodeId);
+                        completedSteps--;
+                        createParticleEffect(this);
+                    } else {
+                        // Node is being marked as complete
+                        progressManager.completeNode(nodeId);
+                        completedSteps++;
+                    }
+
+                    // Update progress bar and percentage using new system
+                    const progress = progressManager.getCompletionPercentage(treeLevels.length);
+                    updateProgress(progress);
+
+                    // Check for milestones
+                    if (progress >= 25 && progress < 50) celebrateMilestone(25);
+                    else if (progress >= 50 && progress < 75) celebrateMilestone(50);
+                    else if (progress >= 75) celebrateMilestone(75);
+                });
+
+                // Enhanced hover effects for tooltips
+                level.addEventListener('mouseenter', function() {
+                    tooltip.style.opacity = '1';
+                    tooltip.style.top = '-50px';
+                    tooltip.style.left = '50%';
+                    tooltip.style.transform = 'translateX(-50%)';
+                    this.style.zIndex = '20';
+
+                    // Show additional node information in console for debugging
+                    const nodeData = roadmapManager.getNodeById(nodeId);
+                    console.log(`Node ${nodeId}: ${nodeData.title}`, {
+                        description: nodeData.description,
+                        difficulty: nodeData.difficulty,
+                        category: nodeData.category,
+                        prerequisites: nodeData.prerequisites,
+                        completed: progressManager.isCompleted(nodeId)
+                    });
+                });
+
+                level.addEventListener('mouseleave', function() {
+                    tooltip.style.opacity = '0';
+                    this.style.zIndex = '10';
+                });
+            });
+
+            // Enhanced progress update function
+            function updateProgress(progress) {
+                progressBar.style.width = progress + '%';
+                percentage.textContent = Math.round(progress) + '%';
+
+                // Color transition based on progress
+                const hue = (progress / 100) * 120; // 0-120 (red to green)
+                percentage.style.background = `linear-gradient(45deg, hsl(${hue}, 70%, 60%), hsl(${hue + 20}, 70%, 70%))`;
+                percentage.style.backgroundClip = 'text';
+                percentage.style.webkitBackgroundClip = 'text';
+                percentage.style.webkitTextFillColor = 'transparent';
+            }
+
+            // Auto-progress animation with milestones (using new progress system)
+            const autoProgressInterval = setInterval(() => {
+                // Simulate completing nodes automatically for demo
+                const currentCompleted = progressManager.getCompletedCount();
+                if (currentCompleted < treeLevels.length) {
+                    const nextNodeId = currentCompleted + 1;
+                    progressManager.completeNode(nextNodeId);
+
+                    const progress = progressManager.getCompletionPercentage(treeLevels.length);
+                    updateProgress(progress);
+
+                    // Trigger milestone celebrations during auto-progress
+                    if (Math.floor(progress) === 25) celebrateMilestone(25);
+                    if (Math.floor(progress) === 50) celebrateMilestone(50);
+                    if (Math.floor(progress) === 75) celebrateMilestone(75);
+                } else {
+                    clearInterval(autoProgressInterval);
+                }
+            }, 2000); // Slower auto-progress for better demo experience
+
+            // Display roadmap statistics
+            function displayRoadmapStats() {
+                const stats = roadmapManager.getCompletionStats(progressManager.getCompletedNodes());
+                console.log('=== Network Engineer Roadmap Statistics ===');
+                console.log(`Overall Progress: ${stats.completionPercentage}% (${stats.completedNodes}/${stats.totalNodes} nodes)`);
+                console.log('Category Breakdown:');
+                Object.entries(stats.categoryStats).forEach(([category, data]) => {
+                    console.log(`  ${category}: ${data.completed}/${data.total} (${Math.round(data.percentage)}%)`);
+                });
+                console.log('Difficulty Breakdown:');
+                Object.entries(stats.difficultyStats).forEach(([difficulty, data]) => {
+                    console.log(`  ${difficulty}: ${data.completed}/${data.total} (${Math.round(data.percentage)}%)`);
+                });
+                console.log('Recently Completed:', progressManager.getRecentlyCompleted());
+                console.log('========================================');
+            }
+
+            // Add keyboard shortcuts for debugging
+            document.addEventListener('keydown', function(e) {
+                switch(e.key.toLowerCase()) {
+                    case 'r':
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            if (confirm('Reset all progress? This cannot be undone.')) {
+                                progressManager.clearProgress();
+                                location.reload();
+                            }
+                        }
+                        break;
+                    case 's':
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            displayRoadmapStats();
+                        }
+                        break;
+                    case 'e':
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            const exportData = progressManager.exportProgress();
+                            console.log('Progress Export Data:', exportData);
+                            alert('Progress data exported to console. Check browser dev tools.');
+                        }
+                        break;
+                }
+            });
+
+            // Display initial statistics
+            displayRoadmapStats();
+
+            // Parallax effect for background shapes
+            document.addEventListener('mousemove', function(e) {
+                const shapes = document.querySelectorAll('.bg-shape');
+                const mouseX = e.clientX / window.innerWidth;
+                const mouseY = e.clientY / window.innerHeight;
+
+                shapes.forEach((shape, index) => {
+                    const speed = (index + 1) * 0.02;
+                    const x = (mouseX - 0.5) * 20 * speed;
+                    const y = (mouseY - 0.5) * 20 * speed;
+
+                    shape.style.transform = `translate(${x}px, ${y}px)`;
+                });
+            });
+            });
 </body>
 </html>
