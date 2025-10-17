@@ -1,0 +1,258 @@
+/* Custom styles for the Roadmap Application */
+
+/* Import Tailwind CSS base, components, and utilities */
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Custom CSS Variables for theming */
+:root {
+    --primary-color: #3B82F6;
+    --secondary-color: #10B981;
+    --warning-color: #F59E0B;
+    --danger-color: #EF4444;
+    --background-color: #F9FAFB;
+    --surface-color: #FFFFFF;
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+    --border-color: #E5E7EB;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+    --background-color: #111827;
+    --surface-color: #1F2937;
+    --text-primary: #F9FAFB;
+    --text-secondary: #D1D5DB;
+    --border-color: #374151;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Custom component styles */
+@layer components {
+    .btn-primary {
+        @apply bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transform hover:scale-105 active:scale-95;
+    }
+
+    .btn-success {
+        @apply bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transform hover:scale-105 active:scale-95;
+    }
+
+    .btn-warning {
+        @apply bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transform hover:scale-105 active:scale-95;
+    }
+
+    .btn-danger {
+        @apply bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transform hover:scale-105 active:scale-95;
+    }
+
+    .card {
+        @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm transition-all duration-300 hover:shadow-md;
+    }
+
+    .nav-tab {
+        @apply transition-all duration-200 cursor-pointer;
+    }
+
+    .nav-tab.active {
+        @apply bg-blue-500 text-white;
+    }
+
+    .nav-tab:not(.active):hover {
+        @apply bg-gray-100 dark:bg-gray-700;
+    }
+
+    /* Roadmap specific components */
+    .milestone-node {
+        @apply cursor-pointer transition-all duration-300 hover:scale-110;
+    }
+
+    .milestone-node.completed {
+        @apply fill-green-500;
+    }
+
+    .milestone-node.current {
+        @apply fill-blue-500 animate-pulse;
+    }
+
+    .milestone-node.locked {
+        @apply fill-gray-400;
+    }
+
+    .roadmap-connection {
+        @apply stroke-gray-300 dark:stroke-gray-600;
+    }
+
+    .roadmap-connection.completed {
+        @apply stroke-green-500;
+    }
+
+    .activity-item {
+        @apply transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md;
+    }
+
+    .toast {
+        @apply fixed top-4 right-4 z-50 max-w-sm w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg pointer-events-auto transition-all duration-300 transform translate-x-full;
+    }
+
+    .toast.show {
+        @apply translate-x-0;
+    }
+
+    .toast.success {
+        @apply border-l-4 border-green-500;
+    }
+
+    .toast.error {
+        @apply border-l-4 border-red-500;
+    }
+
+    .toast.warning {
+        @apply border-l-4 border-yellow-500;
+    }
+
+    .loading-shimmer {
+        @apply animate-pulse bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700;
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+    }
+}
+
+/* Custom utility styles */
+@layer utilities {
+    .text-shadow {
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .glass-effect {
+        background: rgba(255, 255, 255, 0.25);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+}
+
+/* Enhanced Animation styles */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+.animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+}
+
+.animate-pulse-glow {
+    animation: pulse-glow 2s infinite;
+}
+
+/* Roadmap specific animations */
+@keyframes drawLine {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes fillNode {
+    from {
+        r: 0;
+    }
+    to {
+        r: 8;
+    }
+}
+
+.draw-line {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: drawLine 2s ease-in-out forwards;
+}
+
+.fill-node {
+    animation: fillNode 0.5s ease-out forwards;
+}
+
+/* Hover effects for roadmap */
+.milestone-node:hover {
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+/* Dark mode transition */
+* {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Responsive design enhancements */
+@media (max-width: 768px) {
+    .container {
+        @apply px-2;
+    }
+}
+
+/* Loading spinner */
+.spinner {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
