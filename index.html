@@ -13,12 +13,46 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-size: 400% 400%;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            animation: gradientShift 8s ease-in-out infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        /* Floating geometric shapes */
+        .bg-shape {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            animation: float 6s ease-in-out infinite;
+            z-index: -1;
+        }
+
+        .bg-shape:nth-child(1) {
+            width: 60px; height: 60px; top: 10%; left: 5%;
+            transform: rotate(45deg); animation-delay: 0s;
+        }
+        .bg-shape:nth-child(2) {
+            width: 40px; height: 40px; top: 20%; right: 10%;
+            border-radius: 50%; animation-delay: 2s;
+        }
+        .bg-shape:nth-child(3) {
+            width: 80px; height: 30px; bottom: 30%; left: 8%;
+            border-radius: 15px; animation-delay: 4s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(120deg); }
+            66% { transform: translateY(10px) rotate(240deg); }
         }
 
         .container {
@@ -51,26 +85,103 @@
             border-radius: 50%;
             border: 3px solid rgba(255, 255, 255, 0.3);
             cursor: pointer;
-            transition: all 0.3s ease;
-            animation: pulse 2s infinite;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: nodeEntrance 1s cubic-bezier(0.4, 0, 0.2, 1) both,
+                       enhancedPulse 3s ease-in-out infinite;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            z-index: 10;
+        }
+
+        .tree-level::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #f5576c);
+            border-radius: 50%;
+            z-index: -1;
+            animation: rotate 4s linear infinite;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .tree-level:hover {
-            transform: scale(1.1);
+            transform: scale(1.2) translateY(-5px);
             background: rgba(255, 255, 255, 1);
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.6),
+                        0 0 30px rgba(102, 126, 234, 0.4);
+            animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
 
-        .tree-level:nth-child(1) { top: 10%; left: 10%; animation-delay: 0s; }
-        .tree-level:nth-child(2) { top: 15%; left: 25%; animation-delay: 0.2s; }
-        .tree-level:nth-child(3) { top: 30%; left: 15%; animation-delay: 0.4s; }
-        .tree-level:nth-child(4) { top: 35%; left: 35%; animation-delay: 0.6s; }
-        .tree-level:nth-child(5) { top: 50%; left: 25%; animation-delay: 0.8s; }
-        .tree-level:nth-child(6) { top: 55%; left: 45%; animation-delay: 1s; }
-        .tree-level:nth-child(7) { top: 70%; left: 35%; animation-delay: 1.2s; }
-        .tree-level:nth-child(8) { top: 75%; left: 55%; animation-delay: 1.4s; }
-        .tree-level:nth-child(9) { top: 85%; left: 45%; animation-delay: 1.6s; }
-        .tree-level:nth-child(10) { top: 90%; left: 70%; animation-delay: 1.8s; }
+        .tree-level:hover::before {
+            opacity: 0.8;
+        }
+
+        .tree-level.particle-active::after {
+            content: '';
+            position: absolute;
+            width: 4px; height: 4px;
+            background: #fff;
+            border-radius: 50%;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            animation: particleFloat 2s ease-out infinite;
+        }
+
+        @keyframes nodeEntrance {
+            0% {
+                opacity: 0;
+                transform: scale(0.3) translateY(50px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        @keyframes enhancedPulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 25px rgba(255, 255, 255, 0.6);
+            }
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.3) translateY(50px); }
+            50% { transform: scale(1.05) translateY(-10px); }
+            70% { transform: scale(0.9) translateY(2px); }
+            100% { transform: scale(1.2) translateY(-5px); }
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes particleFloat {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(0) translateY(-30px);
+                opacity: 0;
+            }
+        }
+
+        .tree-level:nth-child(1) { top: 10%; left: 10%; animation-delay: 0.1s, 0s; }
+        .tree-level:nth-child(2) { top: 15%; left: 25%; animation-delay: 0.3s, 0.2s; }
+        .tree-level:nth-child(3) { top: 30%; left: 15%; animation-delay: 0.5s, 0.4s; }
+        .tree-level:nth-child(4) { top: 35%; left: 35%; animation-delay: 0.7s, 0.6s; }
+        .tree-level:nth-child(5) { top: 50%; left: 25%; animation-delay: 0.9s, 0.8s; }
+        .tree-level:nth-child(6) { top: 55%; left: 45%; animation-delay: 1.1s, 1s; }
+        .tree-level:nth-child(7) { top: 70%; left: 35%; animation-delay: 1.3s, 1.2s; }
+        .tree-level:nth-child(8) { top: 75%; left: 55%; animation-delay: 1.5s, 1.4s; }
+        .tree-level:nth-child(9) { top: 85%; left: 45%; animation-delay: 1.7s, 1.6s; }
+        .tree-level:nth-child(10) { top: 90%; left: 70%; animation-delay: 1.9s, 1.8s; }
 
         @keyframes pulse {
             0%, 100% { transform: scale(1); opacity: 0.8; }
@@ -79,15 +190,65 @@
 
         .connection-line {
             position: absolute;
-            height: 2px;
-            background: rgba(255, 255, 255, 0.4);
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #fff, transparent);
             transform-origin: left center;
-            animation: glow 3s ease-in-out infinite alternate;
+            animation: energyFlow 2s ease-in-out infinite,
+                       linePulse 3s ease-in-out infinite alternate;
+            overflow: hidden;
         }
 
-        @keyframes glow {
-            0% { opacity: 0.4; }
-            100% { opacity: 0.8; }
+        .connection-line::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.8) 50%,
+                transparent 100%);
+            animation: flow 1.5s ease-in-out infinite;
+        }
+
+        .connection-line::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent 0px,
+                transparent 8px,
+                rgba(255, 255, 255, 0.3) 8px,
+                rgba(255, 255, 255, 0.3) 16px
+            );
+            animation: dashFlow 2s linear infinite;
+        }
+
+        @keyframes energyFlow {
+            0%, 100% {
+                background: linear-gradient(90deg, transparent, #fff, transparent);
+                box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+            }
+            50% {
+                background: linear-gradient(90deg, rgba(102, 126, 234, 0.6), #fff, rgba(240, 147, 251, 0.6));
+                box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+            }
+        }
+
+        @keyframes linePulse {
+            0% { opacity: 0.6; transform: scaleY(1); }
+            100% { opacity: 1; transform: scaleY(1.5); }
+        }
+
+        @keyframes flow {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        @keyframes dashFlow {
+            0% { background-position: 0px 0px; }
+            100% { background-position: 32px 0px; }
         }
 
         .line1 { top: 13%; left: 13%; width: 15%; transform: rotate(15deg); }
@@ -122,19 +283,173 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 200px;
-            height: 4px;
+            width: 250px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
             background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
+            border-radius: 3px;
             overflow: hidden;
+            position: relative;
         }
 
         .progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #45a049);
+            background: linear-gradient(90deg, #4CAF50, #45a049, #2196F3, #9C27B0);
+            background-size: 200% 100%;
             width: 0%;
-            transition: width 0.5s ease;
-            border-radius: 2px;
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 3px;
+            animation: progressShimmer 2s ease-in-out infinite;
+            position: relative;
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.4) 50%,
+                transparent 100%);
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: white;
+            font-weight: 600;
+        }
+
+        .percentage {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: numberPulse 2s ease-in-out infinite;
+        }
+
+        .milestone-indicator {
+            position: absolute;
+            width: 2px; height: 12px;
+            background: #fff;
+            top: -3px;
+            opacity: 0.8;
+            animation: milestoneGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes progressShimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        @keyframes numberPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes milestoneGlow {
+            0%, 100% { opacity: 0.8; box-shadow: 0 0 3px rgba(255, 255, 255, 0.5); }
+            50% { opacity: 1; box-shadow: 0 0 8px rgba(255, 255, 255, 0.8); }
+        }
+
+        /* Ripple effect */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(0);
+            animation: rippleAnimation 0.6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes rippleAnimation {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        /* Drag and drop visual feedback */
+        .tree-level.dragging {
+            transform: scale(1.3) rotate(5deg);
+            box-shadow: 0 15px 35px rgba(255, 255, 255, 0.8),
+                        0 0 40px rgba(102, 126, 234, 0.6);
+            z-index: 100;
+        }
+
+        .tree-level.drag-over {
+            animation: dragPulse 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes dragPulse {
+            0% { transform: scale(1.1); }
+            100% { transform: scale(1.15); }
+        }
+
+        /* Smooth transitions for state changes */
+        .tree-level.state-changing {
+            animation: stateTransition 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes stateTransition {
+            0% { background: rgba(255, 255, 255, 0.9); }
+            50% { background: rgba(102, 126, 234, 0.8); }
+            100% { background: rgba(255, 255, 255, 1); }
+        }
+
+        /* Performance optimizations */
+        .tree-level, .connection-line, .progress-bar {
+            will-change: transform, opacity;
+            backface-visibility: hidden;
+            perspective: 1000px;
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .tree-level,
+            .connection-line,
+            .progress-bar,
+            .bg-shape {
+                animation: none;
+                transition: none;
+            }
+
+            .tree-level::before,
+            .tree-level::after {
+                display: none;
+            }
+        }
+
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            .tree-level {
+                border: 3px solid white;
+            }
+
+            .connection-line {
+                background: white;
+            }
         }
 
         @media (max-width: 768px) {
@@ -152,10 +467,20 @@
                 height: 45px;
                 font-size: 14px;
             }
+
+            .progress-indicator {
+                width: 200px;
+                height: 50px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Floating background shapes -->
+    <div class="bg-shape"></div>
+    <div class="bg-shape"></div>
+    <div class="bg-shape"></div>
+
     <div class="container">
         <div class="roadmap-tree">
             <div class="tree-level">1</div>
@@ -180,7 +505,16 @@
             <div class="connection-line line9"></div>
 
             <div class="progress-indicator">
-                <div class="progress-bar" id="progressBar"></div>
+                <div class="progress-text">
+                    <span>Progress</span>
+                    <span class="percentage" id="percentage">0%</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                    <div class="milestone-indicator" id="milestone25" style="left: 25%;"></div>
+                    <div class="milestone-indicator" id="milestone50" style="left: 50%;"></div>
+                    <div class="milestone-indicator" id="milestone75" style="left: 75%;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -189,7 +523,14 @@
         document.addEventListener('DOMContentLoaded', function() {
             const treeLevels = document.querySelectorAll('.tree-level');
             const progressBar = document.getElementById('progressBar');
+            const percentage = document.getElementById('percentage');
+            const milestoneIndicators = {
+                25: document.getElementById('milestone25'),
+                50: document.getElementById('milestone50'),
+                75: document.getElementById('milestone75')
+            };
             let completedSteps = 0;
+            let autoProgress = 0;
 
             // Network engineering roadmap data (tooltips)
             const roadmapData = [
@@ -198,6 +539,49 @@
                 'Monitoring', 'Automation'
             ];
 
+            // Create ripple effect
+            function createRipple(event) {
+                const ripple = document.createElement('div');
+                const rect = event.target.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = event.clientX - rect.left - size / 2;
+                const y = event.clientY - rect.top - size / 2;
+
+                ripple.style.width = ripple.style.height = size + 'px';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                ripple.classList.add('ripple');
+
+                event.target.appendChild(ripple);
+
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
+            }
+
+            // Particle effect on node activation
+            function createParticleEffect(element) {
+                element.classList.add('particle-active');
+
+                setTimeout(() => {
+                    element.classList.remove('particle-active');
+                }, 2000);
+            }
+
+            // Milestone celebration
+            function celebrateMilestone(milestone) {
+                const indicator = milestoneIndicators[milestone];
+                if (indicator) {
+                    indicator.style.animation = 'milestoneGlow 1s ease-in-out';
+                    indicator.style.background = '#4CAF50';
+
+                    setTimeout(() => {
+                        indicator.style.animation = 'milestoneGlow 2s ease-in-out infinite';
+                        indicator.style.background = '#fff';
+                    }, 1000);
+                }
+            }
+
             treeLevels.forEach((level, index) => {
                 // Add tooltip
                 const tooltip = document.createElement('div');
@@ -205,52 +589,121 @@
                 tooltip.textContent = roadmapData[index];
                 level.appendChild(tooltip);
 
-                // Click interaction
-                level.addEventListener('click', function() {
-                    // Toggle active state
-                    this.classList.toggle('active');
+                // Drag and drop functionality (visual feedback only)
+                let isDragging = false;
+
+                level.addEventListener('mousedown', function(e) {
+                    isDragging = true;
+                    this.classList.add('dragging');
+                });
+
+                document.addEventListener('mousemove', function(e) {
+                    if (isDragging) {
+                        const rect = level.getBoundingClientRect();
+                        level.style.left = ((e.clientX - rect.width / 2) / window.innerWidth * 100) + '%';
+                        level.style.top = ((e.clientY - rect.height / 2) / window.innerHeight * 100) + '%';
+                    }
+                });
+
+                document.addEventListener('mouseup', function(e) {
+                    if (isDragging) {
+                        isDragging = false;
+                        level.classList.remove('dragging');
+                        // Reset position after drag
+                        setTimeout(() => {
+                            level.style.left = '';
+                            level.style.top = '';
+                        }, 300);
+                    }
+                });
+
+                // Click interaction with enhanced animations
+                level.addEventListener('click', function(e) {
+                    // Create ripple effect
+                    createRipple(e);
+
+                    // Toggle active state with smooth transition
+                    this.classList.add('state-changing');
+                    setTimeout(() => {
+                        this.classList.toggle('active');
+                        this.classList.remove('state-changing');
+                    }, 100);
 
                     // Update progress
                     if (this.classList.contains('active')) {
                         completedSteps++;
+                        createParticleEffect(this);
                     } else {
                         completedSteps--;
                     }
 
-                    // Update progress bar
+                    // Update progress bar and percentage
                     const progress = (completedSteps / treeLevels.length) * 100;
-                    progressBar.style.width = progress + '%';
+                    updateProgress(progress);
 
-                    // Visual feedback
-                    this.style.animation = 'none';
-                    setTimeout(() => {
-                        this.style.animation = 'pulse 2s infinite';
-                    }, 300);
+                    // Check for milestones
+                    if (progress >= 25 && progress < 50) celebrateMilestone(25);
+                    else if (progress >= 50 && progress < 75) celebrateMilestone(50);
+                    else if (progress >= 75) celebrateMilestone(75);
                 });
 
-                // Hover effect for tooltips
+                // Enhanced hover effects for tooltips
                 level.addEventListener('mouseenter', function() {
                     tooltip.style.opacity = '1';
                     tooltip.style.top = '-40px';
                     tooltip.style.left = '50%';
                     tooltip.style.transform = 'translateX(-50%)';
+                    this.style.zIndex = '20';
                 });
 
                 level.addEventListener('mouseleave', function() {
                     tooltip.style.opacity = '0';
+                    this.style.zIndex = '10';
                 });
             });
 
-            // Auto-progress animation
-            let autoProgress = 0;
+            // Enhanced progress update function
+            function updateProgress(progress) {
+                progressBar.style.width = progress + '%';
+                percentage.textContent = Math.round(progress) + '%';
+
+                // Color transition based on progress
+                const hue = (progress / 100) * 120; // 0-120 (red to green)
+                percentage.style.background = `linear-gradient(45deg, hsl(${hue}, 70%, 60%), hsl(${hue + 20}, 70%, 70%))`;
+                percentage.style.backgroundClip = 'text';
+                percentage.style.webkitBackgroundClip = 'text';
+                percentage.style.webkitTextFillColor = 'transparent';
+            }
+
+            // Auto-progress animation with milestones
             const autoProgressInterval = setInterval(() => {
-                autoProgress += 1;
+                autoProgress += 0.5;
                 if (autoProgress <= 100) {
-                    progressBar.style.width = autoProgress + '%';
+                    updateProgress(autoProgress);
+
+                    // Trigger milestone celebrations during auto-progress
+                    if (Math.floor(autoProgress) === 25) celebrateMilestone(25);
+                    if (Math.floor(autoProgress) === 50) celebrateMilestone(50);
+                    if (Math.floor(autoProgress) === 75) celebrateMilestone(75);
                 } else {
                     clearInterval(autoProgressInterval);
                 }
-            }, 100);
+            }, 80);
+
+            // Parallax effect for background shapes
+            document.addEventListener('mousemove', function(e) {
+                const shapes = document.querySelectorAll('.bg-shape');
+                const mouseX = e.clientX / window.innerWidth;
+                const mouseY = e.clientY / window.innerHeight;
+
+                shapes.forEach((shape, index) => {
+                    const speed = (index + 1) * 0.02;
+                    const x = (mouseX - 0.5) * 20 * speed;
+                    const y = (mouseY - 0.5) * 20 * speed;
+
+                    shape.style.transform = `translate(${x}px, ${y}px)`;
+                });
+            });
         });
     </script>
 </body>
